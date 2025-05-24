@@ -7,6 +7,7 @@ public class PlatformController : MonoBehaviour
 {
     public float speed = 10f;
     public bool isInitialPlatform = false;
+    public bool isActivePlatform = false;
 
     [SerializeField]
     private bool[] LeftLaneObstacles = new bool[8];

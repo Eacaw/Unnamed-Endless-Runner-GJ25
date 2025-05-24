@@ -1,5 +1,7 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine.UIElements;
 
 public class PlayerController : MonoBehaviour
@@ -39,6 +41,11 @@ public class PlayerController : MonoBehaviour
         "Avoid the obstacles to survive",
     };
 
+    public float invulnerableDuration = 1.5f;
+    private bool isInvulnerable = false;
+    private float invulnerableTimer = 0f;
+    private VisualElement invulnerableProgressBar;
+
     void Awake()
     {
         SetupUI();
@@ -52,6 +59,7 @@ public class PlayerController : MonoBehaviour
         HandleMovement();
         HandleCamera();
         HandleSpawnCooldown();
+        HandleInvulnerability();
     }
 
     private void SetupUI()
@@ -60,6 +68,32 @@ public class PlayerController : MonoBehaviour
         gameOverLabel = uiDocument.rootVisualElement.Q<Label>("GameOverLabel");
         respawnLabel = uiDocument.rootVisualElement.Q<Label>("RespawnLabel");
         livesLabel = uiDocument.rootVisualElement.Q<Label>("LivesLabel");
+        invulnerableProgressBar = uiDocument.rootVisualElement.Q<VisualElement>(
+            "InvulnerableProgressBar"
+        );
+        if (invulnerableProgressBar != null)
+            invulnerableProgressBar.style.display = DisplayStyle.None;
+    }
+
+    private void HandleInvulnerability()
+    {
+        if (isInvulnerable)
+        {
+            invulnerableTimer -= Time.deltaTime;
+            if (invulnerableProgressBar != null)
+            {
+                float t = Mathf.Clamp01(invulnerableTimer / invulnerableDuration);
+                invulnerableProgressBar.style.display = DisplayStyle.Flex;
+                invulnerableProgressBar.style.unityBackgroundImageTintColor = new Color(1, 1, 1, t);
+                invulnerableProgressBar.style.scale = new Scale(new Vector3(t, t, 1));
+            }
+            if (invulnerableTimer <= 0f)
+            {
+                isInvulnerable = false;
+                if (invulnerableProgressBar != null)
+                    invulnerableProgressBar.style.display = DisplayStyle.None;
+            }
+        }
     }
 
     private void HandleInput()
@@ -213,7 +247,6 @@ public class PlayerController : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        Debug.Log("Trigger Entered: " + other.gameObject.name);
         if (!spawnCooldown && other.gameObject.CompareTag("PlatformSpawnTrigger"))
         {
             SpawnPlatform(other);
@@ -225,12 +258,40 @@ public class PlayerController : MonoBehaviour
         }
         else if (other.gameObject.CompareTag("Obstacle"))
         {
-            HandleDeath(other);
+            if (!isInvulnerable)
+                HandleDeath(other);
         }
         else if (other.gameObject.CompareTag("TutorialObstacle"))
         {
-            HandleDeath(other, false);
+            if (!isInvulnerable)
+                HandleDeath(other, false);
         }
+        else if (other.gameObject.CompareTag("Door"))
+        {
+            PlatformController[] platformControllers = FindObjectsByType<PlatformController>(
+                FindObjectsInactive.Include,
+                FindObjectsSortMode.None
+            );
+
+            foreach (var controller in platformControllers)
+            {
+                controller.isActivePlatform = false;
+            }
+
+            PlatformController platformController =
+                other.transform.parent.transform.parent.GetComponentInChildren<PlatformController>();
+            if (platformController != null)
+            {
+                platformController.isActivePlatform = true;
+            }
+            StartCoroutine(HideDoorAfterDelay(other));
+        }
+    }
+
+    private IEnumerator HideDoorAfterDelay(Collider other)
+    {
+        yield return new WaitForSeconds(2f);
+        other.transform.parent.gameObject.SetActive(false);
     }
 
     private void HandleTutorialTrigger()
@@ -288,6 +349,17 @@ public class PlayerController : MonoBehaviour
         isDead = true;
         Vector3 triggerPosition = other.gameObject.transform.position;
         Vector3 playerPosition = transform.position;
+
+        PlatformController[] platformControllers = FindObjectsByType<PlatformController>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None
+        );
+
+        foreach (var controller in platformControllers)
+        {
+            controller.speed = 0f;
+        }
+
         if (triggerPosition.z > playerPosition.z)
         {
             animator.SetTrigger("DeathA");
@@ -296,14 +368,7 @@ public class PlayerController : MonoBehaviour
         {
             animator.SetTrigger("DeathB");
         }
-        PlatformController[] platformControllers = FindObjectsByType<PlatformController>(
-            FindObjectsInactive.Include,
-            FindObjectsSortMode.None
-        );
-        foreach (var controller in platformControllers)
-        {
-            controller.speed = 0f;
-        }
+
         if (livesRemaining > 0 && reduceLives)
         {
             livesRemaining--;
@@ -325,6 +390,7 @@ public class PlayerController : MonoBehaviour
 
     private IEnumerator Respawn(Collider other)
     {
+        isInvulnerable = true;
         respawnLabel.style.display = DisplayStyle.Flex;
         respawnLabel.text = "Respawning in 3...";
         yield return new WaitForSeconds(1f);
@@ -338,55 +404,35 @@ public class PlayerController : MonoBehaviour
             FindObjectsInactive.Include,
             FindObjectsSortMode.None
         );
-        float respawnOffset = 20f;
-        foreach (var controller in platformControllers)
+
+        float offsetZ = 0f;
+        // Find the active platform
+        PlatformController closestPlatform = platformControllers
+            .Where(pc => pc.isActivePlatform)
+            .OrderBy(pc => Mathf.Abs(pc.transform.position.z - transform.position.z))
+            .FirstOrDefault();
+
+        if (closestPlatform != null)
         {
-            controller.transform.parent.position += new Vector3(0, 0, respawnOffset);
-        }
-        int desiredLane = 1;
-        int respawnRow = 0;
-        bool laneSet = false;
-        foreach (var controller in platformControllers)
-        {
-            if (Mathf.Abs(controller.transform.position.z - transform.position.z) < 10f)
+            float playerZ = transform.position.z;
+            offsetZ = Mathf.Abs(closestPlatform.transform.position.z - playerZ) - 16;
+
+            foreach (var controller in platformControllers)
             {
-                bool[,] obstacles = controller.obstaclePositions;
-                if (!obstacles[respawnRow, desiredLane])
-                {
-                    currentLane = desiredLane;
-                    laneSet = true;
-                    break;
-                }
-                if (!obstacles[respawnRow, 0])
-                {
-                    currentLane = 0;
-                    laneSet = true;
-                    break;
-                }
-                if (!obstacles[respawnRow, 2])
-                {
-                    currentLane = 2;
-                    laneSet = true;
-                    break;
-                }
+                controller.transform.parent.position += new Vector3(0, 0, offsetZ);
             }
         }
-        if (!laneSet)
-        {
-            currentLane = 1;
-        }
-        UpdateTargetPosition();
-        transform.position = new Vector3(
-            currentLane * laneWidth - laneWidth,
-            transform.position.y,
-            transform.position.z
-        );
 
-        // Destroy the other obstacle in the tutorial area
-        // Player Crashes to learn a lesson -> then path is clear next time, no lives lost
+        // Reset player position to z = 0
+        currentLane = 1; // Middle lane
+        UpdateTargetPosition();
+
         if (other.gameObject.CompareTag("TutorialObstacle"))
         {
-            other.gameObject.SetActive(false);
+            if (!other.gameObject.transform.parent.gameObject.CompareTag("Door"))
+            {
+                other.gameObject.SetActive(false);
+            }
         }
 
         animator.SetTrigger("Respawn");
@@ -397,6 +443,14 @@ public class PlayerController : MonoBehaviour
         }
         isDead = false;
         spawnCooldown = false;
+
+        // Start invulnerability
+        invulnerableTimer = invulnerableDuration;
+        if (invulnerableProgressBar != null)
+        {
+            invulnerableProgressBar.style.display = DisplayStyle.Flex;
+            invulnerableProgressBar.style.scale = new Scale(Vector3.one);
+        }
     }
 
     private void GameOver()

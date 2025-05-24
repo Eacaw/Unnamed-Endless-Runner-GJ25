@@ -12,6 +12,7 @@ TagManager:
   - BeatController
   - TutorialTrigger
   - TutorialObstacle
+  - Door
   layers:
   - Default
   - TransparentFX
