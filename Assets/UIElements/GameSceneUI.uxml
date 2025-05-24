@@ -1,14 +1,17 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" editor-extension-mode="False">
     <ui:VisualElement style="flex-grow: 1;">
-        <ui:VisualElement name="VisualElement" style="flex-grow: 1; position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
+        <ui:VisualElement name="DeathLabels" style="flex-grow: 1; position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
             <ui:Label text="Oops you died, respawning in 3 seconds..." name="RespawnLabel" style="-unity-text-align: middle-center; white-space: normal; text-overflow: clip; position: relative; top: 150px; left: auto; display: none; color: rgb(255, 255, 255); font-size: 64px; right: auto; bottom: auto; flex-basis: 50%; flex-direction: column; align-items: center; justify-content: center; align-self: center;" />
         </ui:VisualElement>
-        <ui:VisualElement name="VisualElement" style="flex-grow: 1; position: absolute; top: 0; left: 0; right: 0; bottom: 0;">
-            <ui:Label text="Game over, press R to restart!" name="GameOverLabel" style="-unity-text-align: middle-center; white-space: normal; text-overflow: clip; position: relative; top: 150px; left: auto; display: none; color: rgb(255, 255, 255); font-size: 64px; right: auto; bottom: auto; flex-basis: 50%; flex-direction: column; align-items: center; justify-content: center; align-self: center;" />
-        </ui:VisualElement>
-        <ui:VisualElement style="flex-grow: 1; right: 0; top: 0; max-width: 100%; max-height: 10%; position: absolute; min-width: 100%; min-height: 10%; width: 100%; height: 45px; justify-content: space-between; align-self: center; align-content: center; align-items: center; flex-direction: row; margin-top: 20px; margin-right: 64px; margin-bottom: 64px; margin-left: 64px; font-size: 64px; color: rgb(255, 255, 255);">
+        <ui:VisualElement name="GUI" style="flex-grow: 1; right: 0; top: 0; max-width: 100%; max-height: 10%; position: absolute; min-width: 100%; min-height: 10%; width: 100%; height: 45px; justify-content: space-between; align-self: center; align-content: center; align-items: center; flex-direction: row; margin-top: 20px; margin-right: 64px; margin-bottom: 64px; margin-left: 64px; font-size: 64px; color: rgb(255, 255, 255);">
             <ui:Label text="Lives: 5" name="LivesLabel" style="margin-right: 45px; margin-left: 87px;" />
             <ui:Label text="0" name="Score" style="color: rgb(255, 255, 255); font-size: 64px;" />
+        </ui:VisualElement>
+        <ui:VisualElement name="Instructions" style="flex-grow: 1;">
+            <ui:VisualElement style="flex-grow: 1; background-color: rgb(140, 140, 140); width: auto; height: auto; margin-top: 0%; margin-right: 0%; margin-bottom: 0%; margin-left: 0%; position: absolute; top: 50%; left: 10%; right: auto; bottom: auto; padding-top: 20px; padding-right: 20px; padding-bottom: 20px; padding-left: 20px; border-top-left-radius: 37px; border-top-right-radius: 37px; border-bottom-right-radius: 37px; border-bottom-left-radius: 37px;">
+                <ui:Label text="Move left/right between lanes" name="InstructionsLabel" style="font-size: 24px; -unity-text-align: middle-center; color: rgb(255, 255, 255); -unity-font-style: bold; margin-bottom: 12px; white-space: normal;" />
+                <ui:VisualElement name="InstructionsImage" style="flex-grow: 1; background-image: url(&quot;project://database/Assets/Materials/InputTextures/MovementInput.png?fileID=2800000&amp;guid=656e025cb3b31b44e8008457325ba3d4&amp;type=3#MovementInput&quot;); width: 380px; height: 110px; border-top-left-radius: -65px; border-top-right-radius: -65px; border-bottom-right-radius: -65px; border-bottom-left-radius: -65px; min-width: 380px; min-height: 110px; max-width: 380px; max-height: 110px;" />
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

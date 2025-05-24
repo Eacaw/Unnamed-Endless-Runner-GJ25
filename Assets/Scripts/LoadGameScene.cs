@@ -4,8 +4,11 @@ using UnityEngine.SceneManagement;
 
 public class LoadGameScene : MonoBehaviour
 {
-    [SerializeField] private Button playButton;
-    [SerializeField] private string sceneToLoad;
+    [SerializeField]
+    private Button playButton;
+
+    [SerializeField]
+    private string sceneToLoad;
 
     private void Start()
     {

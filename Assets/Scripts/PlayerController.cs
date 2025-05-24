@@ -6,6 +6,7 @@ public class PlayerController : MonoBehaviour
 {
     public Camera camera;
     public GameObject[] prefabsToInstantiate;
+    public Sprite[] tutorialImages;
 
     private int currentLane = 1; // 0 = left, 1 = middle, 2 = right
     private float laneWidth = 2.5f; // Distance between lanes
@@ -16,6 +17,8 @@ public class PlayerController : MonoBehaviour
     private bool spawnCooldown = false;
     private float spawnCooldownTime = 3.0f; // seconds
     private float spawnCooldownTimer = 0f;
+
+    // UI Elements
     private Animator animator;
     private UIDocument uiDocument;
     private Label gameOverLabel;
@@ -26,6 +29,15 @@ public class PlayerController : MonoBehaviour
     private float turnResetSpeed = 10f; // How quickly to return to forward
     private float currentTurn = 0f; // Current turn angle
     private bool isJumping = false;
+
+    private int currentTutorialStep = 0;
+    private string[] tutorialMessages =
+    {
+        "Move left/right between lanes",
+        "Jump over obstacles on the floor",
+        "Collect apples to gain points",
+        "Avoid the obstacles to survive",
+    };
 
     void Awake()
     {
@@ -79,9 +91,9 @@ public class PlayerController : MonoBehaviour
             StartCoroutine(JumpRoutine());
         }
 
-        if (Input.GetKeyDown(KeyCode.R))
+        if (Input.GetKeyDown(KeyCode.R) && isDead)
         {
-            RestartGame();
+            MoveToEndGameScene();
         }
 
         UpdateTurn(laneChanged, turnDirection);
@@ -156,21 +168,16 @@ public class PlayerController : MonoBehaviour
         );
     }
 
-    private void RestartGame()
+    private void MoveToEndGameScene()
     {
-        Time.timeScale = 1f;
-        gameOverLabel.style.display = DisplayStyle.None;
-        isDead = false;
-        UnityEngine.SceneManagement.SceneManager.LoadScene(
-            UnityEngine.SceneManagement.SceneManager.GetActiveScene().name
-        );
+        UnityEngine.SceneManagement.SceneManager.LoadScene("EndGame");
     }
 
     private IEnumerator JumpRoutine()
     {
         isJumping = true;
         animator.SetTrigger("Jump");
-        float jumpHeight = 1.5f;
+        float jumpHeight = 1.8f;
         float jumpDuration = 0.5f;
         float elapsedTime = 0f;
         Vector3 startPosition = transform.position;
@@ -206,14 +213,59 @@ public class PlayerController : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        Debug.Log("Trigger Entered: " + other.gameObject.name);
         if (!spawnCooldown && other.gameObject.CompareTag("PlatformSpawnTrigger"))
         {
             SpawnPlatform(other);
+        }
+        else if (other.gameObject.CompareTag("TutorialTrigger"))
+        {
+            HandleTutorialTrigger();
+            other.gameObject.SetActive(false);
         }
         else if (other.gameObject.CompareTag("Obstacle"))
         {
             HandleDeath(other);
         }
+        else if (other.gameObject.CompareTag("TutorialObstacle"))
+        {
+            HandleDeath(other, false);
+        }
+    }
+
+    private void HandleTutorialTrigger()
+    {
+        Label tutorialLabel = uiDocument.rootVisualElement.Q<Label>("InstructionsLabel");
+        VisualElement tutorialImageContainer = uiDocument.rootVisualElement.Q<VisualElement>(
+            "InstructionsImage"
+        );
+        VisualElement instructionsOverlay = uiDocument.rootVisualElement.Q<VisualElement>(
+            "Instructions"
+        );
+
+        if (currentTutorialStep > tutorialMessages.Length - 1)
+        {
+            instructionsOverlay.style.display = DisplayStyle.None;
+            tutorialLabel.style.display = DisplayStyle.None;
+            tutorialImageContainer.style.display = DisplayStyle.None;
+        }
+        else
+        {
+            if (currentTutorialStep <= 3)
+            {
+                tutorialImageContainer.style.backgroundImage = new StyleBackground(
+                    tutorialImages[currentTutorialStep]
+                );
+            }
+            else
+            {
+                tutorialImageContainer.style.backgroundImage = new StyleBackground();
+            }
+            tutorialLabel.text = tutorialMessages[currentTutorialStep];
+            tutorialLabel.style.display = DisplayStyle.Flex;
+            tutorialImageContainer.style.display = DisplayStyle.Flex;
+        }
+        currentTutorialStep++;
     }
 
     private void SpawnPlatform(Collider other)
@@ -226,11 +278,12 @@ public class PlayerController : MonoBehaviour
             new Vector3(0, 0, other.gameObject.transform.parent.position.z + 64),
             Quaternion.identity
         );
+        other.gameObject.SetActive(false);
         spawnCooldown = true;
         spawnCooldownTimer = spawnCooldownTime;
     }
 
-    private void HandleDeath(Collider other)
+    private void HandleDeath(Collider other, bool reduceLives = true)
     {
         isDead = true;
         Vector3 triggerPosition = other.gameObject.transform.position;
@@ -251,12 +304,18 @@ public class PlayerController : MonoBehaviour
         {
             controller.speed = 0f;
         }
-        if (livesRemaining > 0)
+        if (livesRemaining > 0 && reduceLives)
         {
             livesRemaining--;
             livesLabel.text = "Lives: " + livesRemaining.ToString();
             respawnLabel.style.display = DisplayStyle.Flex;
-            StartCoroutine(Respawn());
+            StartCoroutine(Respawn(other));
+        }
+        else if (livesRemaining > 0 && !reduceLives)
+        {
+            respawnLabel.text = "Try to avoid obstacles!";
+            respawnLabel.style.display = DisplayStyle.Flex;
+            StartCoroutine(Respawn(other));
         }
         else
         {
@@ -264,12 +323,17 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private IEnumerator Respawn()
+    private IEnumerator Respawn(Collider other)
     {
-        yield return new WaitForSeconds(3f);
+        respawnLabel.style.display = DisplayStyle.Flex;
+        respawnLabel.text = "Respawning in 3...";
+        yield return new WaitForSeconds(1f);
+        respawnLabel.text = "Respawning in 2...";
+        yield return new WaitForSeconds(1f);
+        respawnLabel.text = "Respawning in 1...";
+        yield return new WaitForSeconds(1f);
         respawnLabel.style.display = DisplayStyle.None;
 
-        Time.timeScale = 1f;
         PlatformController[] platformControllers = FindObjectsByType<PlatformController>(
             FindObjectsInactive.Include,
             FindObjectsSortMode.None
@@ -317,6 +381,14 @@ public class PlayerController : MonoBehaviour
             transform.position.y,
             transform.position.z
         );
+
+        // Destroy the other obstacle in the tutorial area
+        // Player Crashes to learn a lesson -> then path is clear next time, no lives lost
+        if (other.gameObject.CompareTag("TutorialObstacle"))
+        {
+            other.gameObject.SetActive(false);
+        }
+
         animator.SetTrigger("Respawn");
         yield return new WaitForSeconds(2.5f);
         foreach (var controller in platformControllers)
@@ -329,7 +401,6 @@ public class PlayerController : MonoBehaviour
 
     private void GameOver()
     {
-        gameOverLabel.style.display = DisplayStyle.Flex;
-        isDead = true;
+        MoveToEndGameScene();
     }
 }

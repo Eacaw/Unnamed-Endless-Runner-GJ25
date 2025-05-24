@@ -4,8 +4,11 @@ using UnityEngine.SceneManagement;
 
 public class EndgameButtonController : MonoBehaviour
 {
-    [SerializeField] private Button tryAgainButton;
-    [SerializeField] private Button mainMenuButton;
+    [SerializeField]
+    private Button tryAgainButton;
+
+    [SerializeField]
+    private Button mainMenuButton;
 
     private void Start()
     {
